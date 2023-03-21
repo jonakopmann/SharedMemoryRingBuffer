@@ -4,6 +4,17 @@
 
 #include "shmrb/ring-buffer.h"
 
+void RingBuffer::pthread_rwlock_init_pshared(pthread_rwlock_t* rwlock)
+{
+    pthread_rwlockattr_t attr;
+    pthread_rwlockattr_init(&attr);
+    pthread_rwlockattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
+
+    pthread_rwlock_init(rwlock, &attr);
+    pthread_rwlockattr_destroy(&attr);
+}
+
+
 RingBuffer::RingBuffer(const gchar* name, gboolean isProducer, gsize capacity, gsize itemSize)
     : m_isProducer(isProducer), m_itemSize(itemSize)
 {
@@ -14,7 +25,7 @@ RingBuffer::RingBuffer(const gchar* name, gboolean isProducer, gsize capacity, g
         return;
     }
 
-    m_size = sizeof(Header) + sizeof(Lock) + capacity * m_itemSize;
+    m_size = sizeof(Header) + sizeof(pthread_rwlock_t) + capacity * m_itemSize;
 
     if (isProducer && (ftruncate(shm_fd, m_size) < 0))
     {
@@ -33,15 +44,15 @@ RingBuffer::RingBuffer(const gchar* name, gboolean isProducer, gsize capacity, g
     // | Header | Lock |    Data    |
 
     m_header = reinterpret_cast<Header*>(p_buf);
-    m_lock = reinterpret_cast<Lock*>((gchar*)p_buf + sizeof(Header));
-    m_data = (gpointer)((gchar*)m_lock + sizeof(Lock));
+    m_lock = reinterpret_cast<pthread_rwlock_t*>((gchar*)p_buf + sizeof(Header));
+    m_data = (gpointer)((gchar*)m_lock + sizeof(pthread_rwlock_t));
 
     if (m_isProducer)
     {
         m_header->capacity = capacity;
         m_header->begin = 0;
         m_header->end = 0;
-        m_lock->Init();
+        pthread_rwlock_init_pshared(m_lock);
     }
 }
 
@@ -63,7 +74,7 @@ gboolean RingBuffer::CanRead()
 
 void RingBuffer::AddItem(gpointer data)
 {
-    m_lock->LockWriter();
+    LockWrite();
 
     // copy over to m_data
     memmove((gpointer)((gchar*)m_data + m_header->end * m_itemSize), data, m_itemSize);
@@ -75,16 +86,16 @@ void RingBuffer::AddItem(gpointer data)
         m_header->begin = (m_header->begin + 1) % m_header->capacity;
     }
 
-    m_lock->UnlockWriter();
+    UnlockWrite();
 }
 
 gpointer RingBuffer::GetItem(gint& outCurrentIndex, gint desiredIndex /*= -1*/)
 {
-    m_lock->LockReader();
+    LockRead();
 
     if (m_header->begin == m_header->end || desiredIndex == m_header->end)
     {
-        m_lock->UnlockReader();
+        UnlockRead();
         return NULL;
     }
 
@@ -99,7 +110,7 @@ gpointer RingBuffer::GetItem(gint& outCurrentIndex, gint desiredIndex /*= -1*/)
     gpointer data = (gpointer)((gchar*)m_data + outCurrentIndex * m_itemSize);
     outCurrentIndex = (outCurrentIndex + 1) % m_header->capacity;
 
-    m_lock->UnlockReader();
+    UnlockRead();
 
     return data;
 }
