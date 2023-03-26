@@ -18,9 +18,15 @@ jobs:
         mkdir build
         cd build
         cmake ..
-    - name: make
+    - name: |
+        cd build
+        make
       run: make
     - name: make check
-      run: make check
+      run: |
+        cd build
+        make check
     - name: make distcheck
-      run: make distcheck
+      run: |
+        cd build
+        make distcheck
