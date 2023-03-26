@@ -19,7 +19,7 @@ jobs:
         cd build
         cmake ..
     - name: |
-        cd build
+        ls
         make
       run: make
     - name: make check
