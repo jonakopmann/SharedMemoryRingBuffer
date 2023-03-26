@@ -18,15 +18,10 @@ jobs:
         mkdir build
         cd build
         cmake ..
-    - name: |
-        ls
         make
-      run: make
     - name: make check
       run: |
-        cd build
         make check
     - name: make distcheck
       run: |
-        cd build
         make distcheck
