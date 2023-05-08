@@ -13,8 +13,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: build
-      run: |
-        meson build
-        cd build
-        ninja
+    - name: Meson Build
+      uses: BSFishy/meson-build@v1.0.3
+
