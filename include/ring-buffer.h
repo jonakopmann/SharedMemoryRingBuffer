@@ -3,8 +3,6 @@
 #include <glib-2.0/glib.h>
 #include <pthread.h>
 
-#define EVENT_BUFFER_SHM "/shm_ring_buffer"
-
 class RingBuffer
 {
 private:
@@ -18,10 +16,9 @@ private:
     pthread_rwlock_t* m_lock;
     gpointer m_data;
 
+    gboolean m_isProducer;
     gsize m_itemSize;
     gsize m_size;
-    gboolean m_isProducer;
-
 
     void pthread_rwlock_init_pshared(pthread_rwlock_t* rwlock);
 
@@ -37,10 +34,10 @@ public:
     gpointer GetWritePointer();
     gpointer GetReadPointer(gint& outCurrentIndex, gint desiredIndex = -1);
 
-    void LockRead() { pthread_rwlock_rdlock(m_lock); }
-    void UnlockRead() { pthread_rwlock_unlock(m_lock); }
-    void LockWrite() { pthread_rwlock_wrlock(m_lock); }
-    void UnlockWrite() { pthread_rwlock_unlock(m_lock); }
+    inline void LockRead() { pthread_rwlock_rdlock(m_lock); }
+    inline void UnlockRead() { pthread_rwlock_unlock(m_lock); }
+    inline void LockWrite() { pthread_rwlock_wrlock(m_lock); }
+    inline void UnlockWrite() { pthread_rwlock_unlock(m_lock); }
 
     static void Destroy(const gchar* name);
 };

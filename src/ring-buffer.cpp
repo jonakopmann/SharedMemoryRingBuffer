@@ -2,7 +2,7 @@
 #include <sys/mman.h>   
 #include <sys/stat.h>
 
-#include "shmrb/ring-buffer.h"
+#include "ring-buffer.h"
 
 void RingBuffer::pthread_rwlock_init_pshared(pthread_rwlock_t* rwlock)
 {
@@ -117,13 +117,15 @@ gpointer RingBuffer::GetItem(gint& outCurrentIndex, gint desiredIndex /*= -1*/)
 
 gpointer RingBuffer::GetWritePointer()
 {
-    gpointer retVal = (gpointer)((gchar*)m_data + m_header->end * m_itemSize);
+    gpointer retVal = (gchar*)m_data + m_header->end * m_itemSize;
 
-    m_header->end = (m_header->end + 1) % m_header->capacity;
+    m_header->end++;
+    m_header->end %= m_header->capacity;
     if (m_header->end == m_header->begin)
     {
         // buffer is full move begin
-        m_header->begin = (m_header->begin + 1) % m_header->capacity;
+        m_header->begin++;
+        m_header->begin %= m_header->capacity;
     }
 
     return retVal;
@@ -144,8 +146,9 @@ gpointer RingBuffer::GetReadPointer(gint& outCurrentIndex, gint desiredIndex /*=
         outCurrentIndex = m_header->begin;
     }
 
-    gpointer data = (gpointer)((gchar*)m_data + outCurrentIndex * m_itemSize);
-    outCurrentIndex = (outCurrentIndex + 1) % m_header->capacity;
+    gpointer data = (gchar*)m_data + outCurrentIndex * m_itemSize;
+    outCurrentIndex++;
+    outCurrentIndex %= m_header->capacity;
 
     return data;
 }
